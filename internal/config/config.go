@@ -24,10 +24,10 @@ type HTTPServer struct {
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"30s"`
 }
 
-func MastLoad() Config {
+func MastLoad() *Config {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		log.Fatal("CONFIG_PATH environment variable is not set")
+		configPath = "config/local.yaml"
 	}
 
 	// Проверка на существование файла конфигурации
@@ -41,5 +41,5 @@ func MastLoad() Config {
 		log.Fatalf("failed to read configuration: %v", err)
 	}
 
-	return cfg
+	return &cfg
 }

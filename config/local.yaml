@@ -1,7 +1,7 @@
 env: "local" #local, dev, prod
 
 postgres:
-  dsn: "postgres://user:password@localhost:5432/app_db?sslmode=disable"
+  dsn: "host=localhost port=5432 user=postgres password=1230 dbname=northwind_psql sslmode=disable"
 
 http_server:
   address: "localhost:8080"
