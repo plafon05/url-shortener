@@ -1,7 +1,16 @@
-# Go
+# Go build artifacts
 *.exe
 *.out
 *.test
+
+# Vendor folder
 /vendor/
+
+# Binary output
 /bin/
+
+# Environment files
 .env
+
+# Local configuration files with secrets
+internal/config/local.yaml
