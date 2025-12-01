@@ -2,6 +2,7 @@ package main
 
 import (
 	"httpServer_project/internal/config"
+	"httpServer_project/internal/http-server/handlers/url/save"
 	mwLogger "httpServer_project/internal/http-server/middleware/logger"
 	"httpServer_project/internal/storage/postgres"
 	"httpServer_project/lib/logger/handlers/slogpretty"
@@ -45,6 +46,8 @@ func main() {
 	router.Use(mwLogger.New(log))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
+
+	router.Post("/url", save.New(log, storage))
 
 	// TODO: run server
 }
