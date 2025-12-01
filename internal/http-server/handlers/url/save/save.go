@@ -1,6 +1,8 @@
 package save
 
 import (
+	"errors"
+	"httpServer_project/internal/storage"
 	resp "httpServer_project/lib/api/response"
 	"log/slog"
 	"net/http"
@@ -63,5 +65,25 @@ func New(log *slog.Logger, urlSever URLSever) http.HandlerFunc {
 			alias = aliasgen.GenerateAlias(req.URL)
 			log.Info("сгенерирован алиас", slog.String("alias", alias))
 		}
+
+		id, err := urlSever.SeveURL(req.URL, alias)
+
+		if errors.Is(err, storage.ErrURLExists) {
+			log.Info("URL уже существует", slog.String("url", req.URL))
+			render.JSON(w, r, resp.Error("URL уже существует"))
+			return
+		}
+
+		if err != nil {
+			log.Error("не удалось сохранить  URl", slg.Err(err))
+			render.JSON(w, r, resp.Error("не удалось сохранить  URl"))
+			return
+		}
+
+		log.Info("URL успешно сохранён", slog.Int64("id", id))
+		render.JSON(w, r, Response{
+			Response: resp.OK(),
+			Alias:    alias,
+		})
 	}
 }
