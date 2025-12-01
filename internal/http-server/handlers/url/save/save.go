@@ -1,6 +1,7 @@
 package save
 
 import (
+	"context"
 	"errors"
 	"httpServer_project/internal/storage"
 	resp "httpServer_project/lib/api/response"
@@ -27,7 +28,7 @@ type Response struct {
 }
 
 type URLSever interface {
-	SeveURL(urlToSave, alias string) (int64, error)
+	SaveURL(ctx context.Context, urlToSave, alias string) (int64, error)
 }
 
 func New(log *slog.Logger, urlSever URLSever) http.HandlerFunc {
@@ -66,7 +67,7 @@ func New(log *slog.Logger, urlSever URLSever) http.HandlerFunc {
 			log.Info("сгенерирован алиас", slog.String("alias", alias))
 		}
 
-		id, err := urlSever.SeveURL(req.URL, alias)
+		id, err := urlSever.SaveURL(req.URL, alias)
 
 		if errors.Is(err, storage.ErrURLExists) {
 			log.Info("URL уже существует", slog.String("url", req.URL))

@@ -119,6 +119,6 @@ func (s *Storage) DeleteURL(ctx context.Context, alias string) error {
 		return storage.ErrAliasNotFound
 	}
 
-	log.Println("URL was successfully deleted")
+	log.Println("URL был успешно удалён")
 	return nil
 }
