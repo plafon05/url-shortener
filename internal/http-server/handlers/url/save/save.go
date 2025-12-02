@@ -67,7 +67,7 @@ func New(log *slog.Logger, urlSever URLSever) http.HandlerFunc {
 			log.Info("сгенерирован алиас", slog.String("alias", alias))
 		}
 
-		id, err := urlSever.SaveURL(req.URL, alias)
+		id, err := urlSever.SaveURL(r.Context(), req.URL, alias)
 
 		if errors.Is(err, storage.ErrURLExists) {
 			log.Info("URL уже существует", slog.String("url", req.URL))

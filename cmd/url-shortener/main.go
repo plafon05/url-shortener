@@ -26,14 +26,14 @@ func main() {
 	cfg := config.MastLoad()
 
 	log := setupLogger(cfg.Env)
-	log.Info("start url-shortener", slog.String("env", cfg.Env))
-	log.Debug("debug massages are enabled")
+	log.Info("запуск url-shortener", slog.String("env", cfg.Env))
+	log.Debug("отладочные сообщения включены")
 
 	// Инициализирую хранилище моих данных
 	storage, err := postgres.New(cfg.Postgres.Dsn)
 
 	if err != nil {
-		log.Error("failed to initialize storage", slg.Err(err))
+		log.Error("не удалось инициализировать хранилище", slg.Err(err))
 		os.Exit(1)
 	}
 

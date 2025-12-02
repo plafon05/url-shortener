@@ -32,13 +32,13 @@ func MastLoad() *Config {
 
 	// Проверка на существование файла конфигурации
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("configuration file does not exist: %s", configPath)
+		log.Fatalf("файл конфигурации не существует: %s", configPath)
 	}
 
 	var cfg Config
 
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Fatalf("failed to read configuration: %v", err)
+		log.Fatalf("не удалось прочитать конфигурацию: %v", err)
 	}
 
 	return &cfg
