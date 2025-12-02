@@ -8,6 +8,7 @@ import (
 	"httpServer_project/lib/logger/handlers/slogpretty"
 	"httpServer_project/lib/logger/slg"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/go-chi/chi/v5"
@@ -49,7 +50,22 @@ func main() {
 
 	router.Post("/url", save.New(log, storage))
 
-	// TODO: run server
+	log.Info("сервер запущен", slog.String("address", cfg.HTTPServer.Address))
+
+	svr := &http.Server{
+		Addr:         cfg.HTTPServer.Address,
+		Handler:      router,
+		ReadTimeout:  cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+	}
+
+	if err := svr.ListenAndServe(); err != nil {
+		log.Error("ошибка при запуске сервера", slg.Err(err))
+		os.Exit(1)
+	}
+
+	log.Error("сервер остановлен")
 }
 
 // Настройка логгера в зависимости от окружения
