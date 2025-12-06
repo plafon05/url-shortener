@@ -34,30 +34,30 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 
 		alias := chi.URLParam(r, "alias")
 		if alias == "" {
-			log.Info("alias is empty")
+			log.Info("alias пустой")
 
-			render.JSON(w, r, resp.Error("invalid request"))
+			render.JSON(w, r, resp.Error("неверный запрос"))
 
 			return
 		}
 
 		resURL, err := urlGetter.GetURL(r.Context(), alias)
 		if errors.Is(err, storage.ErrURLNotFound) {
-			log.Info("url not found", "alias", alias)
+			log.Info("url не найден", "alias", alias)
 
 			render.JSON(w, r, resp.Error("not found"))
 
 			return
 		}
 		if err != nil {
-			log.Error("failed to get url", slg.Err(err))
+			log.Error("ошибка при получении url", slg.Err(err))
 
 			render.JSON(w, r, resp.Error("internal error"))
 
 			return
 		}
 
-		log.Info("got url", slog.String("url", resURL))
+		log.Info("получен url", slog.String("url", resURL))
 
 		//
 		http.Redirect(w, r, resURL, http.StatusFound)
