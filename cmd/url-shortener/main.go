@@ -44,15 +44,25 @@ func main() {
 	// Иницилизация роутера на go-chi
 	router := chi.NewRouter()
 
+	// Регистрация middleware
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(mwLogger.New(log))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	router.Post("/url", save.New(log, storage))
+	router.Route("/url", func(r chi.Router) {
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))
+
+		// Регистрация хендлеров
+		r.Post("/", save.New(log, storage))
+		r.Delete("/{alias}", remove.New(log, storage))
+	})
+
+	// Хендлер для редиректа по алиасу
 	router.Get("/{alias}", redirect.New(log, storage))
-	router.Delete("/url/{alias}", remove.New(log, storage))
 
 	log.Info("сервер запущен", slog.String("address", cfg.HTTPServer.Address))
 
