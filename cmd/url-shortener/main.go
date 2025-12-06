@@ -2,6 +2,7 @@ package main
 
 import (
 	"httpServer_project/internal/config"
+	"httpServer_project/internal/http-server/handlers/redirect"
 	"httpServer_project/internal/http-server/handlers/url/save"
 	mwLogger "httpServer_project/internal/http-server/middleware/logger"
 	"httpServer_project/internal/storage/postgres"
@@ -49,6 +50,7 @@ func main() {
 	router.Use(middleware.URLFormat)
 
 	router.Post("/url", save.New(log, storage))
+	router.Get("/{alias}", redirect.New(log, storage))
 
 	log.Info("сервер запущен", slog.String("address", cfg.HTTPServer.Address))
 
