@@ -32,11 +32,22 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
+		// Получение алиаса из URL-параметров
+		// Извлекаем алиас
 		alias := chi.URLParam(r, "alias")
-		if alias == "" {
-			log.Info("alias пустой")
 
-			render.JSON(w, r, resp.Error("неверный запрос"))
+		if alias == "" {
+			// Логируем с контекстом
+			log.Info("пустой алиас в запросе",
+				slog.String("path", r.URL.Path),
+				slog.String("method", r.Method),
+				slog.String("client_ip", r.RemoteAddr),
+				slog.String("user_agent", r.Header.Get("User-Agent")),
+			)
+
+			render.Status(r, http.StatusBadRequest) // 400
+
+			render.JSON(w, r, resp.Error("алиас не может быть пустым"))
 
 			return
 		}
@@ -59,7 +70,6 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 
 		log.Info("получен url", slog.String("url", resURL))
 
-		//
 		http.Redirect(w, r, resURL, http.StatusFound)
 	}
 }

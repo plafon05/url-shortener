@@ -122,3 +122,23 @@ func (s *Storage) DeleteURL(ctx context.Context, alias string) error {
 	log.Println("URL был успешно удалён")
 	return nil
 }
+
+func (s *Storage) GetAliasByURL(ctx context.Context, urlToFind string) (string, error) {
+
+	const op = "storage.postgres.GetAliasByURL"
+
+	var alias string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT alias FROM url
+		WHERE url=$1
+		`, urlToFind).Scan(&alias)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", storage.ErrURLNotFound
+		}
+		return "", fmt.Errorf("%s: %w", op, err)
+	}
+
+	return alias, nil
+}

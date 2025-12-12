@@ -57,12 +57,12 @@ func main() {
 		}))
 
 		// Регистрация хендлеров
-		r.Post("/", save.New(log, storage))
-		r.Delete("/{alias}", remove.New(log, storage))
+		r.Post("/", save.New(log, storage))          // Хендлер для сохранения url с алиасом
+		r.Delete("/alias", remove.New(log, storage)) // Хендлер для удаления url по алиасу
+		r.Get("/alias", redirect.New(log, storage))  // Хендлер для поиска url по алиасу
 	})
 
-	// Хендлер для редиректа по алиасу
-	router.Get("/{alias}", redirect.New(log, storage))
+	router.Get("/alias-by-url", redirect.New(log, storage)) // Хендлер для поиска алиаса по url
 
 	log.Info("сервер запущен", slog.String("address", cfg.HTTPServer.Address))
 
