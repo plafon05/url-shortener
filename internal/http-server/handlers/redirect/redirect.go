@@ -17,8 +17,6 @@ import (
 )
 
 // URLGetter это интерфейс для получения URL по алиасу.
-//
-//go:generate go run github.com/vektra/mockery/v2@v2.28.2 --name=URLGetter
 type URLGetter interface {
 	GetURL(ctx context.Context, alias string) (string, error)
 }
@@ -33,7 +31,7 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 		)
 
 		// Получение алиаса из URL-параметров
-		// Извлекаем алиас
+		//Извлекаем алиас
 		alias := chi.URLParam(r, "alias")
 
 		if alias == "" {

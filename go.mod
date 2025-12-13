@@ -10,6 +10,7 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9
 )
 
 require (
