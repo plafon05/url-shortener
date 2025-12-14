@@ -2,6 +2,7 @@ package main
 
 import (
 	"httpServer_project/internal/config"
+	"httpServer_project/internal/http-server/handlers/alias/resolve"
 	"httpServer_project/internal/http-server/handlers/redirect"
 	"httpServer_project/internal/http-server/handlers/url/remove"
 	"httpServer_project/internal/http-server/handlers/url/save"
@@ -57,12 +58,12 @@ func main() {
 		}))
 
 		// Регистрация хендлеров
-		r.Post("/", save.New(log, storage))          // Хендлер для сохранения url с алиасом
-		r.Delete("/alias", remove.New(log, storage)) // Хендлер для удаления url по алиасу
-		r.Get("/alias", redirect.New(log, storage))  // Хендлер для поиска url по алиасу
+		r.Post("/", save.New(log, storage))            // Хендлер для сохранения url с алиасом
+		r.Delete("/{alias}", remove.New(log, storage)) // Хендлер для удаления url по алиасу
+		r.Get("/aliases", resolve.New(log, storage))   // Хендлер для поиска алиаса по url
 	})
 
-	router.Get("/alias-by-url", redirect.New(log, storage)) // Хендлер для поиска алиаса по url
+	router.Get("/{alias}", redirect.New(log, storage)) // Хендлер для поиска url по алиасу
 
 	log.Info("сервер запущен", slog.String("address", cfg.HTTPServer.Address))
 

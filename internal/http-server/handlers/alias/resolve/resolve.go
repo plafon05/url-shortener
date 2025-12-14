@@ -17,12 +17,12 @@ import (
 )
 
 type AliasGetter interface {
-	GetAliasByURL(ctx context.Context, url string) (string, error)
+	GetAliasesByURL(ctx context.Context, url string) ([]string, error)
 }
 
 type Response struct {
 	resp.Response
-	Alias string `json:"alias,omitempty"`
+	Alias []string `json:"alias,omitempty"`
 }
 
 func New(log *slog.Logger, aliasGetter AliasGetter) http.HandlerFunc {
@@ -60,7 +60,7 @@ func New(log *slog.Logger, aliasGetter AliasGetter) http.HandlerFunc {
 			return
 		}
 
-		alias, err := aliasGetter.GetAliasByURL(r.Context(), urlParam)
+		aliases, err := aliasGetter.GetAliasesByURL(r.Context(), urlParam)
 
 		if errors.Is(err, storage.ErrAliasNotFound) {
 			log.Info("alias не найден", "url", urlParam)
@@ -79,14 +79,14 @@ func New(log *slog.Logger, aliasGetter AliasGetter) http.HandlerFunc {
 			return
 		}
 
-		log.Info("получен alias",
-			slog.String("alias", alias),
+		log.Info("получены alias",
+			slog.Any("aliases", aliases),
 			slog.String("url", urlParam),
 		)
 
 		render.JSON(w, r, Response{
 			Response: resp.OK(),
-			Alias:    alias,
+			Alias:    aliases,
 		})
 	}
 }

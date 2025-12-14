@@ -72,7 +72,7 @@ func (s *Storage) SaveURL(ctx context.Context, urlToSave, alias string) (int64, 
 
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
-			return 0, fmt.Errorf("%s: %w", op, storage.ErrURLExists)
+			return 0, fmt.Errorf("%s: %w", op, storage.ErrAliasExists)
 		}
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -123,22 +123,31 @@ func (s *Storage) DeleteURL(ctx context.Context, alias string) error {
 	return nil
 }
 
-func (s *Storage) GetAliasByURL(ctx context.Context, urlToFind string) (string, error) {
+func (s *Storage) GetAliasesByURL(ctx context.Context, urlToFind string) ([]string, error) {
 
-	const op = "storage.postgres.GetAliasByURL"
+	const op = "storage.postgres.GetAliasesByURL"
 
-	var alias string
-	err := s.db.QueryRowContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT alias FROM url
 		WHERE url=$1
-		`, urlToFind).Scan(&alias)
+		`, urlToFind)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", storage.ErrURLNotFound
-		}
-		return "", fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return alias, nil
+	var aliases []string
+	for rows.Next() {
+		var alias string
+		if err := rows.Scan(&alias); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		aliases = append(aliases, alias)
+	}
+
+	if len(aliases) == 0 {
+		return nil, storage.ErrURLNotFound
+	}
+
+	return aliases, nil
 }

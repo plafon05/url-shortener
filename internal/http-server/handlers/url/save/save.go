@@ -69,9 +69,9 @@ func New(log *slog.Logger, urlSever URLSever) http.HandlerFunc {
 
 		id, err := urlSever.SaveURL(r.Context(), req.URL, alias)
 
-		if errors.Is(err, storage.ErrURLExists) {
-			log.Info("URL уже существует", slog.String("url", req.URL))
-			render.JSON(w, r, resp.Error("URL уже существует"))
+		if errors.Is(err, storage.ErrAliasExists) {
+			log.Info("Alias уже существует", slog.String("alias", alias))
+			render.JSON(w, r, resp.Error("Alias уже существует"))
 			return
 		}
 
