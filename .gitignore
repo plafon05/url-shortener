@@ -13,4 +13,4 @@
 .env
 
 # Local configuration files with secrets
-internal/config/local.yaml
+config/local.yaml
