@@ -14,3 +14,4 @@
 
 # Local configuration files with secrets
 config/local.yaml
+docker-compose-local.yml

@@ -1,0 +1,70 @@
+name: Deploy URL Shortener
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      HOST: root@178.72.136.219
+      DEPLOY_DIRECTORY: /root/apps/httpServer_project
+      ENV_FILE_PATH: /root/apps/httpServer_project/.env
+
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: Check if tag exists
+        run: |
+          git fetch --all --tags
+          if ! git tag | grep -q "^${{ github.event.inputs.tag }}$"; then
+            echo "Tag not found"
+            exit 1
+          fi
+
+      - name: Install ssh + rsync
+        run: sudo apt-get update && sudo apt-get install -y ssh rsync
+
+      - name: Copy project to server
+        run: |
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > deploy_key.pem
+          chmod 600 deploy_key.pem
+
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no $HOST \
+            "mkdir -p $DEPLOY_DIRECTORY"
+
+          rsync -avz \
+            -e "ssh -i deploy_key.pem -o StrictHostKeyChecking=no" \
+            --exclude='.git' \
+            httpServer_project/ \
+            $HOST:$DEPLOY_DIRECTORY
+
+
+      - name: Create .env file on server
+        run: |
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no $HOST << EOF
+          cat > $ENV_FILE_PATH << ENV
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          HTTP_USER=${{ secrets.HTTP_USER }}
+          HTTP_PASSWORD=${{ secrets.HTTP_PASSWORD }}
+          ENV
+          chmod 600 $ENV_FILE_PATH
+          EOF
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no $HOST << EOF
+          cd $DEPLOY_DIRECTORY
+          docker compose down
+          docker compose up -d --build
+          EOF
