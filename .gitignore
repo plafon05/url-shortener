@@ -15,3 +15,5 @@
 # Local configuration files with secrets
 config/local.yaml
 docker-compose-local.yml
+deploy_key
+deploy_key.pub
