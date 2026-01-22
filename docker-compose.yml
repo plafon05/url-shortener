@@ -11,7 +11,7 @@ services:
 
   httpserver:
     build:
-      context: ./httpServer_project
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
