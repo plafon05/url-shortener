@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      HOST: root@93.88.203.96
+      HOST: root@93.88.203.225
       DEPLOY_DIRECTORY: /root/apps/httpServer_project
       ENV_FILE_PATH: /root/apps/httpServer_project/.env
 
