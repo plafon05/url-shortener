@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: url_shortener
       POSTGRES_USER: ${POSTGRES_USER}
@@ -9,11 +11,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d url_shortener"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
-      retries: 15
-      timeout: 5s
-      start_period: 5s
+      retries: 5
 
   httpserver:
     build:
@@ -24,6 +24,8 @@ services:
       - .env
     environment:
       CONFIG_PATH: /app/config/prod.yaml
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "8082:8082"
     depends_on:
