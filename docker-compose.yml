@@ -2,10 +2,10 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       POSTGRES_DB: url_shortener
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -24,4 +24,4 @@ services:
       - postgres
 
 volumes:
-  pgdata: 
+  pgdata:
