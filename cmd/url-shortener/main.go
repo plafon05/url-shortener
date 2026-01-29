@@ -26,8 +26,10 @@ const (
 )
 
 func main() {
+	// Загружаем конфиг
 	cfg := config.MustLoad()
 
+	// Настраиваем логгер
 	log := setupLogger(cfg.Env)
 	log.Info("запуск url-shortener", slog.String("env", cfg.Env))
 	log.Debug("отладочные сообщения включены")
