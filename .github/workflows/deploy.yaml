@@ -45,9 +45,8 @@ jobs:
           rsync -avz \
             -e "ssh -i deploy_key.pem -o StrictHostKeyChecking=no" \
             --exclude='.git' \
-            httpServer_project/ \
+            ./ \
             $HOST:$DEPLOY_DIRECTORY
-
 
       - name: Create .env file on server
         run: |
