@@ -6,8 +6,14 @@ services:
       - .env
     environment:
       POSTGRES_DB: url_shortener
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      retries: 5
 
   httpserver:
     build:
@@ -21,7 +27,8 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
 volumes:
   pgdata:
