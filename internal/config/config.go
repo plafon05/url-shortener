@@ -5,43 +5,42 @@ import (
 	"os"
 	"time"
 
-	"github.com/ilyakaznacheev/cleanenv"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Env        string     `yaml:"env" env-default:"prod"`
-	Postgres   Postgres   `yaml:"postgres"`
-	HTTPServer HTTPServer `yaml:"http_server"`
+	Env      string `yaml:"env"`
+	Postgres struct {
+		Dsn string `yaml:"dsn"`
+	} `yaml:"postgres"`
+	HTTPServer struct {
+		Address     string        `yaml:"address"`
+		Timeout     time.Duration `yaml:"timeout"`
+		IdleTimeout time.Duration `yaml:"idle_timeout"`
+		User        string        `yaml:"user"`
+		Password    string        `yaml:"password"`
+	} `yaml:"http_server"`
 }
 
-type Postgres struct {
-	Dsn string `yaml:"dsn" env-required:"true"`
-}
-
-type HTTPServer struct {
-	Address     string        `yaml:"address" env-default:"localhost:8080" env-required:"true"`
-	Timeout     time.Duration `yaml:"timeout" env-default:"5s"`
-	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"30s"`
-	User        string        `yaml:"user" env-required:"true"`
-	Password    string        `yaml:"password" env-required:"true" env:"HTTP_SERVER_PASSWORD"`
-}
-
-func MastLoad() *Config {
+func MustLoad() *Config {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath == "" {
-		configPath = "config/local.yaml"
+		log.Fatal("CONFIG_PATH is not set")
 	}
 
-	// Проверка на существование файла конфигурации
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Fatalf("файл конфигурации не существует: %s", configPath)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("cannot read config: %v", err)
 	}
 
 	var cfg Config
-
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Fatalf("не удалось прочитать конфигурацию: %v", err)
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		log.Fatalf("cannot unmarshal config: %v", err)
 	}
+
+	cfg.Postgres.Dsn = os.ExpandEnv(cfg.Postgres.Dsn)
+	cfg.HTTPServer.User = os.ExpandEnv(cfg.HTTPServer.User)
+	cfg.HTTPServer.Password = os.ExpandEnv(cfg.HTTPServer.Password)
 
 	return &cfg
 }
