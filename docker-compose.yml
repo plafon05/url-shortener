@@ -1,31 +1,28 @@
 services:
   postgres:
     image: postgres:17-alpine
+    container_name: postgres
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      POSTGRES_DB: url_shortener
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
-      retries: 5
+      timeout: 5s
+      retries: 10
 
   httpserver:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: httpserver
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       CONFIG_PATH: /app/config/prod.yaml
-      POSTGRES_USER: url_shortener_user
-      POSTGRES_PASSWORD: 1230
-      HTTP_USER: myuser
-      HTTP_PASSWORD: mypass
     ports:
       - "8082:8082"
     depends_on:
