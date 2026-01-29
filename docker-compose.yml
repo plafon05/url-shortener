@@ -14,12 +14,10 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       CONFIG_PATH: /app/config/prod.yaml
-      HTTP_USER: ${HTTP_USER}
-      HTTP_PASSWORD: ${HTTP_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "8082:8082"
     depends_on:
