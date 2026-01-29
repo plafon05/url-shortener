@@ -4,15 +4,15 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: url_shortener
-      POSTGRES_USER: url_shortener_user
-      POSTGRES_PASSWORD: "1230"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U url_shortener_user"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d url_shortener"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   httpserver:
     build: .

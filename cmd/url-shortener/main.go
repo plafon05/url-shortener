@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,27 +26,41 @@ const (
 )
 
 func main() {
-
-	cfg := config.MastLoad()
+	cfg := config.MustLoad()
 
 	log := setupLogger(cfg.Env)
 	log.Info("запуск url-shortener", slog.String("env", cfg.Env))
 	log.Debug("отладочные сообщения включены")
 
-	// Инициализирую хранилище моих данных
-	storage, err := postgres.New(cfg.Postgres.Dsn)
+	// ---------------------------
+	// Подключение к Postgres с retry
+	var storage *postgres.Storage
+	var err error
 
-	if err != nil {
-		log.Error("не удалось инициализировать хранилище", slg.Err(err))
-		os.Exit(1)
+	for i := 1; i <= 10; i++ {
+		storage, err = postgres.New(cfg.Postgres.Dsn)
+		if err == nil {
+			break
+		}
+
+		log.Warn(
+			"postgres недоступен, повторная попытка",
+			slog.Int("attempt", i),
+			slog.Any("error", err),
+		)
+
+		time.Sleep(3 * time.Second)
 	}
 
-	defer storage.Close() // Закрываю пул соединений при завершении программы
+	if err != nil {
+		log.Error("postgres так и не стал доступен", slg.Err(err))
+		os.Exit(1)
+	}
+	defer storage.Close()
 
-	// Иницилизация роутера на go-chi
+	// ---------------------------
+	// Инициализация роутера
 	router := chi.NewRouter()
-
-	// Регистрация middleware
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(mwLogger.New(log))
@@ -56,14 +71,12 @@ func main() {
 		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
 			cfg.HTTPServer.User: cfg.HTTPServer.Password,
 		}))
-
-		// Регистрация хендлеров
-		r.Post("/", save.New(log, storage))            // Хендлер для сохранения url с алиасом
-		r.Delete("/{alias}", remove.New(log, storage)) // Хендлер для удаления url по алиасу
-		r.Get("/aliases", resolve.New(log, storage))   // Хендлер для поиска алиаса по url
+		r.Post("/", save.New(log, storage))
+		r.Delete("/{alias}", remove.New(log, storage))
+		r.Get("/aliases", resolve.New(log, storage))
 	})
 
-	router.Get("/{alias}", redirect.New(log, storage)) // Хендлер для поиска url по алиасу
+	router.Get("/{alias}", redirect.New(log, storage))
 
 	log.Info("сервер запущен", slog.String("address", cfg.HTTPServer.Address))
 
@@ -83,6 +96,7 @@ func main() {
 	log.Error("сервер остановлен")
 }
 
+// ---------------------------
 // Настройка логгера в зависимости от окружения
 func setupLogger(env string) *slog.Logger {
 	var log *slog.Logger
@@ -103,7 +117,7 @@ func setupLogger(env string) *slog.Logger {
 	return log
 }
 
-// Настройка pretty slog логгера
+// pretty slog для локальной разработки
 func setupPrettySlog() *slog.Logger {
 	opts := slogpretty.PrettyHandlerOptions{
 		SlogOpts: &slog.HandlerOptions{
@@ -112,6 +126,5 @@ func setupPrettySlog() *slog.Logger {
 	}
 
 	handler := opts.NewPrettyHandler(os.Stdout)
-
 	return slog.New(handler)
 }
