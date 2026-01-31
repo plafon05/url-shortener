@@ -9,3 +9,4 @@ http_server:
   idle_timeout: 60s
   user: "${HTTP_USER}"
   password: "${HTTP_PASSWORD}"
+
