@@ -16,7 +16,7 @@ import (
 	"httpServer_project/lib/logger/slg"
 )
 
-// URLDeleter это интерфейс для удаления URL по алиасу.
+// URLDeleter — интерфейс для удаления URL по алиасу.
 type URLDeleter interface {
 	DeleteURL(ctx context.Context, alias string) error
 }
@@ -32,28 +32,33 @@ func New(log *slog.Logger, deleter URLDeleter) http.HandlerFunc {
 
 		alias := chi.URLParam(r, "alias")
 		if alias == "" {
-			log.Info("alias пустой")
-
-			render.JSON(w, r, resp.Error("invalid request"))
+			log.Info("empty alias",
+				slog.String("path", r.URL.Path),
+				slog.String("method", r.Method),
+			)
+			render.Status(r, http.StatusBadRequest) // 400
+			render.JSON(w, r, resp.Error("alias cannot be empty"))
 			return
 		}
 
 		if err := deleter.DeleteURL(r.Context(), alias); err != nil {
-			// Алиас не найден
 			if errors.Is(err, storage.ErrAliasNotFound) {
-				log.Info("url не найден", "alias", alias)
+				log.Info("alias not found", slog.String("alias", alias))
+				render.Status(r, http.StatusNotFound) // 404
 				render.JSON(w, r, resp.Error("not found"))
 				return
 			}
 
-			// Любая другая ошибка
-			log.Error("ошибка при удалении url", slg.Err(err))
+			log.Error("failed to delete url",
+				slg.Err(err),
+				slog.String("alias", alias),
+			)
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
 
-		log.Info("url по алиасу удален", slog.String("alias", alias))
-
+		log.Info("url deleted by alias", slog.String("alias", alias))
 		render.JSON(w, r, resp.OK())
 	}
 }

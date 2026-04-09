@@ -16,7 +16,7 @@ import (
 	"httpServer_project/lib/logger/slg"
 )
 
-// URLGetter это интерфейс для получения URL по алиасу.
+// URLGetter — интерфейс для получения URL по алиасу.
 type URLGetter interface {
 	GetURL(ctx context.Context, alias string) (string, error)
 }
@@ -30,44 +30,37 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		// Получение алиаса из URL-параметров
-		//Извлекаем алиас
 		alias := chi.URLParam(r, "alias")
-
 		if alias == "" {
-			// Логируем с контекстом
-			log.Info("пустой алиас в запросе",
+			log.Info("empty alias",
 				slog.String("path", r.URL.Path),
 				slog.String("method", r.Method),
 				slog.String("client_ip", r.RemoteAddr),
 				slog.String("user_agent", r.Header.Get("User-Agent")),
 			)
-
-			render.Status(r, http.StatusBadRequest) // 400
-
-			render.JSON(w, r, resp.Error("алиас не может быть пустым"))
-
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("alias cannot be empty"))
 			return
 		}
 
 		resURL, err := urlGetter.GetURL(r.Context(), alias)
 		if errors.Is(err, storage.ErrURLNotFound) {
-			log.Info("url не найден", "alias", alias)
-
+			log.Info("url not found", slog.String("alias", alias))
+			render.Status(r, http.StatusNotFound) // 404
 			render.JSON(w, r, resp.Error("not found"))
-
 			return
 		}
 		if err != nil {
-			log.Error("ошибка при получении url", slg.Err(err))
-
+			log.Error("failed to get url",
+				slg.Err(err),
+				slog.String("alias", alias),
+			)
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
-
 			return
 		}
 
-		log.Info("получен url", slog.String("url", resURL))
-
+		log.Info("url retrieved", slog.String("url", resURL))
 		http.Redirect(w, r, resURL, http.StatusFound)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
+	"net/url"
 
 	"log/slog"
 
@@ -16,6 +16,7 @@ import (
 	"httpServer_project/lib/logger/slg"
 )
 
+// AliasGetter — интерфейс для получения алиасов по исходному URL.
 type AliasGetter interface {
 	GetAliasesByURL(ctx context.Context, url string) ([]string, error)
 }
@@ -34,52 +35,47 @@ func New(log *slog.Logger, aliasGetter AliasGetter) http.HandlerFunc {
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		// Получение url из query-параметров
 		urlParam := r.URL.Query().Get("url")
-
 		if urlParam == "" {
-			// Логируем с контекстом
-			log.Info("пустой url в запросе",
+			log.Info("empty url in request",
 				slog.String("path", r.URL.Path),
 				slog.String("method", r.Method),
 				slog.String("client_ip", r.RemoteAddr),
 				slog.String("user_agent", r.Header.Get("User-Agent")),
 			)
-
-			render.Status(r, http.StatusBadRequest) // 400
-			render.JSON(w, r, resp.Error("url не может быть пустым"))
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("url cannot be empty"))
 			return
 		}
 
-		// Базовая валидация URL
-		if !strings.HasPrefix(urlParam, "http://") &&
-			!strings.HasPrefix(urlParam, "https://") {
-			log.Info("невалидный URL", slog.String("url", urlParam))
+		// Валидация URL через стандартную библиотеку вместо strings.HasPrefix.
+		if parsed, err := url.ParseRequestURI(urlParam); err != nil ||
+			(parsed.Scheme != "http" && parsed.Scheme != "https") ||
+			parsed.Host == "" {
+			log.Info("invalid URL", slog.String("url", urlParam))
 			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, resp.Error("URL должен начинаться с http:// или https://"))
+			render.JSON(w, r, resp.Error("invalid URL"))
 			return
 		}
 
 		aliases, err := aliasGetter.GetAliasesByURL(r.Context(), urlParam)
-
 		if errors.Is(err, storage.ErrAliasNotFound) {
-			log.Info("alias не найден", "url", urlParam)
+			log.Info("aliases not found", slog.String("url", urlParam))
+			render.Status(r, http.StatusNotFound) // 404
 			render.JSON(w, r, resp.Error("not found"))
 			return
 		}
-
 		if err != nil {
-			log.Error("ошибка при получении alias",
+			log.Error("failed to get aliases",
 				slg.Err(err),
 				slog.String("url", urlParam),
 			)
-
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
 
-		log.Info("получены alias",
+		log.Info("aliases retrieved",
 			slog.Any("aliases", aliases),
 			slog.String("url", urlParam),
 		)

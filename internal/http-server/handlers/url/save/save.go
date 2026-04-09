@@ -3,14 +3,14 @@ package save
 import (
 	"context"
 	"errors"
-	"httpServer_project/internal/storage"
-	resp "httpServer_project/lib/api/response"
-	"log/slog"
 	"net/http"
 
-	"httpServer_project/lib/logger/slg"
+	"log/slog"
 
+	"httpServer_project/internal/storage"
 	"httpServer_project/lib/aliasgen"
+	resp "httpServer_project/lib/api/response"
+	"httpServer_project/lib/logger/slg"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
@@ -27,61 +27,64 @@ type Response struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-type URLSever interface {
+// URLSaver — интерфейс для сохранения URL с алиасом.
+type URLSaver interface {
 	SaveURL(ctx context.Context, urlToSave, alias string) (int64, error)
 }
 
-func New(log *slog.Logger, urlSever URLSever) http.HandlerFunc {
+func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
+	// Инициализируем валидатор один раз, а не при каждом запросе.
+	validate := validator.New()
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "internal.http-server.handlers.url.save.New"
 
-		log = log.With(
+		// Используем := чтобы не мутировать внешний логгер.
+		log := log.With(
 			slog.String("op", op),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
 		var req Request
 
-		err := render.DecodeJSON(r.Body, &req)
-		if err != nil {
-			log.Error("не удалось расшифровать запрос", slg.Err(err))
-			render.JSON(w, r, resp.Error("не удалось расшифровать запрос"))
+		if err := render.DecodeJSON(r.Body, &req); err != nil {
+			log.Error("failed to decode request", slg.Err(err))
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, resp.Error("failed to decode request"))
 			return
 		}
 
-		log.Info("тело запроса расшифровано", slog.Any("request", req))
+		log.Info("request body decoded", slog.Any("request", req))
 
-		if err := validator.New().Struct(req); err != nil {
+		if err := validate.Struct(req); err != nil {
 			validateErr := err.(validator.ValidationErrors)
-
-			log.Error("недопустимый запрос", slg.Err(err))
-
+			log.Error("invalid request", slg.Err(err))
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.ValidationError(validateErr))
-
 			return
 		}
 
 		alias := req.Alias
 		if alias == "" {
 			alias = aliasgen.GenerateAlias(req.URL)
-			log.Info("сгенерирован алиас", slog.String("alias", alias))
+			log.Info("alias generated", slog.String("alias", alias))
 		}
 
-		id, err := urlSever.SaveURL(r.Context(), req.URL, alias)
-
+		id, err := urlSaver.SaveURL(r.Context(), req.URL, alias)
 		if errors.Is(err, storage.ErrAliasExists) {
-			log.Info("Alias уже существует", slog.String("alias", alias))
-			render.JSON(w, r, resp.Error("Alias уже существует"))
+			log.Info("alias already exists", slog.String("alias", alias))
+			render.Status(r, http.StatusConflict) // 409
+			render.JSON(w, r, resp.Error("alias already exists"))
 			return
 		}
-
 		if err != nil {
-			log.Error("не удалось сохранить  URl", slg.Err(err))
-			render.JSON(w, r, resp.Error("не удалось сохранить  URl"))
+			log.Error("failed to save URL", slg.Err(err))
+			render.Status(r, http.StatusInternalServerError)
+			render.JSON(w, r, resp.Error("internal error"))
 			return
 		}
 
-		log.Info("URL успешно сохранён", slog.Int64("id", id))
+		log.Info("URL saved", slog.Int64("id", id))
 		render.JSON(w, r, Response{
 			Response: resp.OK(),
 			Alias:    alias,
