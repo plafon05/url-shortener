@@ -80,9 +80,29 @@ docker compose up -d --build
 
 Приложение поднимется на `http://localhost:8082`.
 
+### Production-конфиг (`config/prod.yaml`)
+
+В `prod.yaml` секреты не хранятся в явном виде, а подставляются из переменных окружения:
+
+```yaml
+env: "prod"
+
+postgres:
+  dsn: "host=postgres port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=url_shortener sslmode=disable"
+
+http_server:
+  address: "0.0.0.0:8082"
+  timeout: 4s
+  idle_timeout: 60s
+  user: "${HTTP_USER}"
+  password: "${HTTP_PASSWORD}"
+```
+
+Для деплоя через GitHub Actions значения `POSTGRES_USER`, `POSTGRES_PASSWORD`, `HTTP_USER`, `HTTP_PASSWORD` должны приходить из GitHub Secrets.
+
 ## API
 
-Все методы под `/url` требуют Basic Auth (`myuser` / `mypass` в `config/*.yaml`).
+Все методы под `/url` требуют Basic Auth (локально можно использовать `config/local.yaml`, в production значения берутся из env).
 
 ### 1) Создать короткую ссылку
 
@@ -193,4 +213,4 @@ go test ./...
 ## Примечания
 
 - Таблица `url` и индекс по alias создаются автоматически при старте приложения.
-- Для запуска в production рекомендуется вынести пароли/логины в секреты окружения и не хранить их в репозитории.
+- Для production секреты не должны храниться в репозитории: используйте только переменные окружения/GitHub Secrets.

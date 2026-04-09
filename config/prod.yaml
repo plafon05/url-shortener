@@ -1,11 +1,11 @@
 env: "prod"
 
 postgres:
-  dsn: "host=postgres port=5432 user=url_shortener_user password=1230 dbname=url_shortener sslmode=disable"
+  dsn: "host=postgres port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=url_shortener sslmode=disable"
 
 http_server:
   address: "0.0.0.0:8082"
   timeout: 4s
   idle_timeout: 60s
-  user: "myuser"
-  password: "mypass"
+  user: "${HTTP_USER}"
+  password: "${HTTP_PASSWORD}"
