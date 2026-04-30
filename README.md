@@ -40,7 +40,7 @@ CONFIG_PATH=./config/local.yaml
 Поддерживаемые поля в YAML:
 
 ```yaml
-env: "local" # local | dev | prod
+env: "local" # local prod
 
 postgres:
   dsn: "host=localhost port=5433 user=postgres password=1230 dbname=url_shortener sslmode=disable"

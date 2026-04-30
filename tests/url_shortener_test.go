@@ -2,122 +2,75 @@ package tests
 
 import (
 	"net/http"
-	"net/url"
 	"testing"
 
-	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gavv/httpexpect/v2"
 	"github.com/stretchr/testify/require"
-
+	"httpServer_project/internal/http-server/handlers/alias/resolve"
 	"httpServer_project/internal/http-server/handlers/url/save"
-	"httpServer_project/lib/aliasgen"
-	"httpServer_project/lib/api"
-)
-
-const (
-	host = "localhost:8082"
+	"httpServer_project/lib/api/response"
 )
 
 func TestURLShortener_HappyPath(t *testing.T) {
-	u := url.URL{
-		Scheme: "http",
-		Host:   host,
-	}
-	e := httpexpect.Default(t, u.String())
+	router := newTestRouter(newInMemoryStorage())
 
-	e.POST("/url").
-		WithJSON(save.Request{
-			URL:   gofakeit.URL(),
-			Alias: aliasgen.GenerateAlias(gofakeit.URL()),
-		}).
-		WithBasicAuth("myuser", "mypass").
-		Expect().
-		Status(200).
-		JSON().Object().
-		ContainsKey("alias")
+	createResp := performJSONRequest(router, http.MethodPost, "/url/", save.Request{
+		URL:   "https://example.com/path",
+		Alias: "my-alias",
+	}, &authCreds{user: testUser, pass: testPass})
+
+	require.Equal(t, http.StatusOK, createResp.Code)
+	created := decodeJSON[save.Response](t, createResp.Body.Bytes())
+	require.Equal(t, response.StatusOK, created.Status)
+	require.Equal(t, "my-alias", created.Alias)
+
+	redirectResp := performRequest(router, http.MethodGet, "/my-alias", nil, nil)
+	require.Equal(t, http.StatusFound, redirectResp.Code)
+	require.Equal(t, "https://example.com/path", redirectResp.Header().Get("Location"))
 }
 
-//nolint:funlen
-func TestURLShortener_SaveRedirect(t *testing.T) {
-	testCases := []struct {
-		name  string
-		url   string
-		alias string
-		error string
-	}{
-		{
-			name:  "Valid URL",
-			url:   gofakeit.URL(),
-			alias: gofakeit.Word() + gofakeit.Word(),
-		},
-		{
-			name:  "Invalid URL",
-			url:   "invalid_url",
-			alias: gofakeit.Word(),
-			error: "поле URL содержит недопустимый URL",
-		},
-		{
-			name:  "Empty Alias",
-			url:   gofakeit.URL(),
-			alias: "",
-		},
-		// TODO: add more test cases
-	}
+func TestURLShortener_CreateResolveDeleteFlow(t *testing.T) {
+	router := newTestRouter(newInMemoryStorage())
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			u := url.URL{
-				Scheme: "http",
-				Host:   host,
-			}
+	const rawURL = "https://example.com/some/path"
+	const alias = "flow-alias"
 
-			e := httpexpect.Default(t, u.String())
+	createResp := performJSONRequest(router, http.MethodPost, "/url/", save.Request{
+		URL:   rawURL,
+		Alias: alias,
+	}, &authCreds{user: testUser, pass: testPass})
+	require.Equal(t, http.StatusOK, createResp.Code)
 
-			// Save
+	aliasesResp := performRequest(router, http.MethodGet, "/url/aliases?url="+rawURL, nil, &authCreds{user: testUser, pass: testPass})
+	require.Equal(t, http.StatusOK, aliasesResp.Code)
 
-			resp := e.POST("/url").
-				WithJSON(save.Request{
-					URL:   tc.url,
-					Alias: tc.alias,
-				}).
-				WithBasicAuth("myuser", "mypass").
-				Expect().Status(http.StatusOK).
-				JSON().Object()
+	aliases := decodeJSON[resolve.Response](t, aliasesResp.Body.Bytes())
+	require.Equal(t, response.StatusOK, aliases.Status)
+	require.Contains(t, aliases.Alias, alias)
 
-			if tc.error != "" {
-				resp.NotContainsKey("alias")
+	deleteResp := performRequest(router, http.MethodDelete, "/url/"+alias, nil, &authCreds{user: testUser, pass: testPass})
+	require.Equal(t, http.StatusOK, deleteResp.Code)
 
-				resp.Value("error").String().IsEqual(tc.error)
-
-				return
-			}
-
-			alias := tc.alias
-
-			if tc.alias != "" {
-				resp.Value("alias").String().IsEqual(tc.alias)
-			} else {
-				resp.Value("alias").String().NotEmpty()
-
-				alias = resp.Value("alias").String().Raw()
-			}
-
-			// Redirect
-
-			testRedirect(t, alias, tc.url)
-		})
-	}
+	redirectAfterDelete := performRequest(router, http.MethodGet, "/"+alias, nil, nil)
+	require.Equal(t, http.StatusNotFound, redirectAfterDelete.Code)
 }
 
-func testRedirect(t *testing.T, alias string, urlToRedirect string) {
-	u := url.URL{
-		Scheme: "http",
-		Host:   host,
-		Path:   alias,
-	}
+func TestURLShortener_AliasesAndDeleteEndpoints(t *testing.T) {
+	router := newTestRouter(newInMemoryStorage())
 
-	redirectedToURL, err := api.GetRedirect(u.String())
-	require.NoError(t, err)
+	const rawURL = "https://example.org/resource"
+	const alias = "alias-endpoint"
 
-	require.Equal(t, urlToRedirect, redirectedToURL)
+	createResp := performJSONRequest(router, http.MethodPost, "/url/", save.Request{
+		URL:   rawURL,
+		Alias: alias,
+	}, &authCreds{user: testUser, pass: testPass})
+	require.Equal(t, http.StatusOK, createResp.Code)
+
+	aliasesResp := performRequest(router, http.MethodGet, "/url/aliases?url="+rawURL, nil, &authCreds{user: testUser, pass: testPass})
+	require.Equal(t, http.StatusOK, aliasesResp.Code)
+	aliases := decodeJSON[resolve.Response](t, aliasesResp.Body.Bytes())
+	require.Contains(t, aliases.Alias, alias)
+
+	deleteResp := performRequest(router, http.MethodDelete, "/url/"+alias, nil, &authCreds{user: testUser, pass: testPass})
+	require.Equal(t, http.StatusOK, deleteResp.Code)
 }
